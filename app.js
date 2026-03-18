@@ -668,18 +668,24 @@ function setupExport() {
   });
 
   document.getElementById('email-btn').addEventListener('click', () => {
-    // First download the file
+    // Download the YAML so user can attach it manually (mailto: cannot include attachments)
     const yaml = buildTakeoffYaml();
     downloadText(yaml, 'takeoff.yaml', 'text/yaml');
     scheduleCacheClear();
 
-    // Then open mailto
-    const workAddress = document.getElementById('work-address').value.trim() || '(address not provided)';
-    const subject = encodeURIComponent("Vic's Takeoff – Material Takeoff, Scope of Work & Estimate");
+    // Build email content
+    const job = getJobDetails();
+    const workAddress = job.work_address || '(address not provided)';
+    const customerName = job.customer_name || '(customer not provided)';
+    const streetOnly = workAddress.split(',')[0].trim() || workAddress;
+    const lineItemCount = rows.length;
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const subject = encodeURIComponent(`Takeoff App - ${streetOnly}`);
     const body = encodeURIComponent(
-      `Hello,\n\nPlease find attached the material takeoff, scope of work, and estimate for ${workAddress}.\n\nThank you`
+      `Hi, this is the takeoff for ${customerName} at ${workAddress}. ${lineItemCount} line items for this takeoff at ${today}.`
     );
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
 
     showBanner('takeoff.yaml downloaded — please attach it to the email that opened.', 'warning');
   });
