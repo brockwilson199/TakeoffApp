@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vic's Takeoff</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>⚡ Vic's Takeoff</h1>
+      <p>Material Takeoff &amp; Scope of Work Builder</p>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ── Section 1: Job Details ── -->
+    <section class="card" id="job-details">
+      <h2>Job Details</h2>
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label for="customer-name">Customer Name</label>
+          <input type="text" id="customer-name" placeholder="John Smith" />
+        </div>
+
+        <div class="form-group">
+          <label for="work-address">Work Address</label>
+          <input type="text" id="work-address" placeholder="123 Main St, Honolulu, HI" />
+        </div>
+
+        <div class="form-group">
+          <label for="business-name">Business Name</label>
+          <input type="text" id="business-name" placeholder="Vic's Electric LLC" />
+        </div>
+
+        <div class="form-group">
+          <label for="business-address">Business Address</label>
+          <input type="text" id="business-address" placeholder="456 Business Blvd" />
+        </div>
+
+        <div class="form-group">
+          <label for="customer-email">Customer Email</label>
+          <input type="email" id="customer-email" placeholder="customer@email.com" />
+        </div>
+
+        <div class="form-group">
+          <label for="customer-phone">Customer Phone</label>
+          <input type="tel" id="customer-phone" placeholder="(808) 555-0100" />
+        </div>
+
+        <div class="form-group">
+          <label for="contractor-email">Contractor Email</label>
+          <input type="email" id="contractor-email" placeholder="vic@vicelectric.com" />
+        </div>
+
+        <div class="form-group">
+          <label for="contractor-phone">Contractor Phone</label>
+          <input type="tel" id="contractor-phone" placeholder="(808) 555-0200" />
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Section 2: Line Items ── -->
+    <section class="card" id="line-items">
+      <div class="section-header">
+        <h2>Line Items</h2>
+        <div class="header-actions">
+          <button id="add-row-btn" class="btn btn-primary">+ Add Row</button>
+          <button id="toggle-columns-btn" class="btn btn-secondary">Hide Columns ▾</button>
+        </div>
+      </div>
+
+      <!-- Column visibility panel -->
+      <div id="column-panel" class="column-panel hidden"></div>
+
+      <div class="table-wrapper">
+        <table id="line-items-table">
+          <thead>
+            <tr>
+              <th data-col="room">Room</th>
+              <th data-col="category">Category</th>
+              <th data-col="worktype">Work Type</th>
+              <th data-col="quantity">Qty</th>
+              <th data-col="material">Material</th>
+              <th data-col="unit_price">Unit Price</th>
+              <th data-col="total_price">Total Price</th>
+              <th data-col="description">Description</th>
+              <th data-col="actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="line-items-body">
+            <!-- rows inserted by app.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Section 3: Totals ── -->
+    <section class="card" id="totals-section">
+      <h2>Totals</h2>
+      <div class="totals-grid">
+
+        <div class="total-box">
+          <label>Base Item Total</label>
+          <div class="total-value readonly" id="base-total">$0.00</div>
+        </div>
+
+        <div class="total-box">
+          <label>Adjustment %</label>
+          <div class="total-input-wrap">
+            <input type="number" id="percent-total" value="100" min="0" step="0.1" />
+            <span class="unit unit-right">%</span>
+          </div>
+        </div>
+
+        <div class="total-box">
+          <label>Final Total</label>
+          <div class="total-input-wrap">
+            <span class="unit">$</span>
+            <input type="number" id="final-total" value="0.00" min="0" step="0.01" />
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Section 4: Export ── -->
+    <section class="card" id="export-section">
+      <h2>Export</h2>
+      <div class="export-actions">
+        <button id="download-btn" class="btn btn-primary">⬇ Download Takeoff (YAML)</button>
+        <button id="email-btn" class="btn btn-secondary">✉ Open Email</button>
+        <button id="save-db-btn" class="btn btn-outline">💾 Save Updated Database</button>
+      </div>
+      <p class="export-note">
+        Tip: Click <strong>Download Takeoff</strong> first, then <strong>Open Email</strong>
+        — the downloaded file will need to be manually attached to the email that opens.
+      </p>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

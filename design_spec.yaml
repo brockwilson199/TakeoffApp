@@ -1,0 +1,210 @@
+app:
+  name: "Vic's Takeoff"
+  tagline: "Material Takeoff & Scope of Work Builder"
+  description: >
+    A static GitHub Pages web app for Vic, an electrical contractor, to build
+    material takeoffs and scope-of-work estimates. Replaces manual Excel entry.
+    No login required. No backend. Pure HTML/CSS/JS.
+
+hosting:
+  platform: GitHub Pages
+  type: static
+  notes: >
+    Enable GitHub Pages in repo Settings > Pages, deploy from branch (e.g. main),
+    folder set to root (/). App will be accessible at:
+    https://{username}.github.io/{repo-name}/VicsTakeoffApp/
+    Alternatively, rename VicsTakeoffApp to "docs" and select /docs in Pages settings
+    to serve it at the root URL.
+
+files:
+  - name: index.html
+    description: >
+      Main single-page app shell. Contains four section divs: job-details,
+      line-items, totals, and export. All logic is in app.js; styles in style.css.
+  - name: style.css
+    description: >
+      All CSS. Deep blue/amber color scheme. CSS variables for theming.
+      Responsive table layout with horizontal scroll. Card-based sections.
+      Smart input dropdown styling.
+  - name: app.js
+    description: >
+      All JavaScript. Loads data.json on init. Implements SmartInput class for
+      autocomplete dropdowns. Manages line item rows. Handles totals sync.
+      Handles YAML export and mailto email open. Handles column visibility toggle.
+      Supports user-added custom values being merged into downloadable database.
+  - name: data.json
+    description: >
+      Local "database" file loaded at runtime. Contains arrays of options for all
+      dropdown fields. Structure: { rooms: [], categories: [], worktypes: [],
+      materials: [{name, price}] }. User can add custom values and re-download
+      an updated version via "Save Updated Database".
+
+sections:
+  job_details:
+    description: Form section at the top for customer and contractor info.
+    fields:
+      - customer_name: text input
+      - work_address: text input (used in email body default message)
+      - business_name: text input
+      - business_address: text input
+      - customer_email: email input
+      - customer_phone: tel input
+      - contractor_email: email input
+      - contractor_phone: tel input
+
+  line_items:
+    description: >
+      Main data-entry table. Each row is one line item. Rows are added one by one
+      via "+ Add Row" button. Columns have smart autocomplete inputs powered by data.json.
+    columns:
+      - key: room
+        label: Room
+        type: smart_input
+        data_key: rooms
+        notes: Dropdown with 2+ char threshold, exact substring match, alphabetical.
+      - key: category
+        label: Category
+        type: smart_input
+        data_key: categories
+      - key: worktype
+        label: Work Type
+        type: smart_input
+        data_key: worktypes
+      - key: quantity
+        label: Qty
+        type: number_input
+        default: 1
+        min: 0
+      - key: material
+        label: Material
+        type: smart_input
+        data_key: materials
+        notes: Selecting a material auto-fills unit_price from materials[].price
+      - key: unit_price
+        label: Unit Price ($)
+        type: number_input
+        notes: Auto-filled when material selected; editable override
+      - key: total_price
+        label: Total Price ($)
+        type: readonly_display
+        formula: quantity * unit_price
+      - key: description
+        label: Description
+        type: text_input
+        notes: >
+          Auto-populated as "{worktype} {quantity} {material}" when those fields
+          are filled. Can be freely overridden. Once manually edited, stops
+          auto-populating.
+      - key: actions
+        label: Actions
+        type: buttons
+        buttons:
+          - Delete row
+          - Hide/Show row toggle
+    features:
+      - Add Row button adds a new empty row
+      - Hide Columns toggle panel with checkboxes for each column
+      - Column visibility persists via hiddenColumns set in JS
+
+  totals:
+    description: Three synchronized boxes below the line items table.
+    boxes:
+      - key: base_item_total
+        label: Base Item Total
+        type: readonly
+        formula: sum of all visible (non-hidden) line item total_price values
+      - key: adjustment_percent
+        label: Adjustment %
+        type: editable_number
+        default: 100
+        notes: Changing this updates final_total = base_item_total * (percent / 100)
+      - key: final_total
+        label: Final Total ($)
+        type: editable_number
+        default: equals base_item_total
+        notes: Changing this updates adjustment_percent = (final_total / base_item_total) * 100
+    sync_rule: >
+      adjustment_percent and final_total are mutually synced. base_item_total
+      is always read-only and recalculates whenever line items change.
+
+  export:
+    description: Bottom section with action buttons.
+    buttons:
+      - id: download-btn
+        label: "Download Takeoff (YAML)"
+        action: >
+          Generates takeoff.yaml from current state and triggers browser download.
+          Also triggers data.json download if user added custom entries.
+      - id: email-btn
+        label: "Open Email"
+        action: >
+          First triggers the YAML download (so file is on disk), then opens
+          mailto: link with:
+            subject: "Vic's Takeoff"
+            body: "Hello, I just made a takeoff for {work_address} using Vic's Takeoff, please see attached."
+          No default recipient is provided; user must enter email address.
+          A banner reminds user to attach the downloaded file.
+      - id: save-db-btn
+        label: "Save Updated Database"
+        action: >
+          Downloads current appData (including any user-added custom values) as
+          data.json so user can replace the project file and persist new entries.
+
+export_format:
+  filename: takeoff.yaml
+  schema:
+    job_details:
+      customer_name: string
+      work_address: string
+      business_name: string
+      business_address: string
+      customer_email: string
+      customer_phone: string
+      contractor_email: string
+      contractor_phone: string
+    line_items:
+      - room: string
+        category: string
+        work_type: string
+        quantity: number
+        material: string
+        unit_price: number
+        total_price: number
+        description: string
+    totals:
+      base_item_total: number
+      adjustment_percent: number
+      final_total: number
+
+autocomplete_behavior:
+  min_chars: 2
+  match_type: exact substring (case-insensitive after lowercasing both query and option)
+  sort: alphabetical
+  keyboard_nav: up/down arrows, Enter to select, Escape to close, Tab to select and advance
+  mouse: click to select
+  custom_entry: >
+    User may type any value not in the list. On blur or Tab without selecting,
+    the typed value is accepted as-is and added to the local database for that
+    data_key. A "Save Updated Database" button lets user download the updated data.json.
+
+data_json_schema:
+  rooms: list of string
+  categories: list of string
+  worktypes: list of string
+  materials:
+    - name: string
+      price: number (unit price in USD)
+
+design:
+  colors:
+    primary: "#1e3a5f"       # deep navy blue
+    accent: "#f59e0b"         # amber/gold (electrical theme)
+    background: "#f0f4f8"     # light blue-gray
+    card: "#ffffff"
+    border: "#d1d5db"
+    text: "#1f2937"
+    muted: "#6b7280"
+    danger: "#ef4444"
+  font: system-ui, sans-serif
+  layout: single-page, card sections stacked vertically
+  table: horizontally scrollable, sticky first column on mobile
