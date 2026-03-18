@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupTotals();
   setupExport();
   document.getElementById('add-row-btn').addEventListener('click', addRow);
-  document.getElementById('toggle-columns-btn').addEventListener('click', toggleColumnPanel);
+  document.getElementById('settings-btn').addEventListener('click', toggleSettingsPanel);
   addRow(); // start with one empty row
 });
 
@@ -48,7 +48,7 @@ async function loadData() {
 // ─── Column Visibility ────────────────────────────────────────
 function buildColumnPanel() {
   const panel = document.getElementById('column-panel');
-  panel.innerHTML = '<span style="font-size:12px;font-weight:700;color:var(--muted);align-self:center">SHOW/HIDE:</span>';
+  panel.innerHTML = '';
   COLUMNS.forEach(col => {
     const lbl = document.createElement('label');
     const cb = document.createElement('input');
@@ -61,9 +61,8 @@ function buildColumnPanel() {
   });
 }
 
-function toggleColumnPanel() {
-  const panel = document.getElementById('column-panel');
-  panel.classList.toggle('hidden');
+function toggleSettingsPanel() {
+  document.getElementById('settings-panel').classList.toggle('hidden');
 }
 
 function toggleColumn(key, visible) {
@@ -81,28 +80,50 @@ function toggleColumn(key, visible) {
 }
 
 // ─── Smart Autocomplete Input ─────────────────────────────────
+let _activeSmartInput = null; // only one dropdown open at a time
+
 class SmartInput {
   constructor(container, dataKey, placeholder, onSelect) {
     this.dataKey = dataKey;
     this.onSelect = onSelect || (() => {});
     this.activeIndex = -1;
 
-    container.classList.add('smart-input-wrap');
+    // Inner wrapper keeps flex layout off the td itself (preserves table-cell display)
+    const wrap = document.createElement('div');
+    wrap.className = 'smart-input-wrap';
+    container.appendChild(wrap);
 
     this.input = document.createElement('input');
     this.input.type = 'text';
     this.input.placeholder = placeholder || '';
 
+    // Dropdown portaled to body so it always renders on top of table/overflow
     this.dropdown = document.createElement('div');
     this.dropdown.className = 'smart-dropdown hidden';
+    document.body.appendChild(this.dropdown);
 
-    container.appendChild(this.input);
-    container.appendChild(this.dropdown);
+    // Toggle button — shows full list on click
+    this.toggleBtn = document.createElement('button');
+    this.toggleBtn.type = 'button';
+    this.toggleBtn.className = 'smart-toggle-btn';
+    this.toggleBtn.textContent = '▾';
+    this.toggleBtn.title = 'Show all options';
+    this.toggleBtn.addEventListener('mousedown', e => {
+      e.preventDefault();
+      if (!this.dropdown.classList.contains('hidden')) {
+        this._closeDropdown();
+      } else {
+        this._showAllOptions();
+      }
+    });
+
+    wrap.appendChild(this.input);
+    wrap.appendChild(this.toggleBtn);
 
     this.input.addEventListener('input', () => this._onInput());
     this.input.addEventListener('keydown', e => this._onKeydown(e));
     this.input.addEventListener('focus', () => {
-      if (this.input.value.length >= 2) this._showDropdown();
+      if (this.input.value.length >= 1 && this.dropdown.classList.contains('hidden')) this._showDropdown();
     });
     this.input.addEventListener('blur', () => {
       setTimeout(() => {
@@ -110,14 +131,20 @@ class SmartInput {
         this._closeDropdown();
       }, 180);
     });
+
+    // Reposition on scroll/resize; close if input scrolls out of view
+    this._scrollHandler = () => {
+      if (!this.dropdown.classList.contains('hidden')) {
+        this._positionDropdown();
+      }
+    };
+    window.addEventListener('scroll', this._scrollHandler, true);
+    window.addEventListener('resize', this._scrollHandler);
   }
 
-  _getOptions() {
-    const query = this.input.value.toLowerCase();
+  _getAllItems() {
     const key = this.dataKey;
-    let source = appData[key] || [];
-
-    // Merge user-added entries
+    const source = appData[key] || [];
     const extra = userAdditions[key] || [];
     const all = [
       ...source,
@@ -126,26 +153,32 @@ class SmartInput {
         (typeof e === 'string' ? e : e.name).toLowerCase()
       ))
     ];
+    return all.map(item => typeof item === 'string' ? item : item.name)
+              .sort((a, b) => a.localeCompare(b));
+  }
 
-    return all
-      .map(item => typeof item === 'string' ? item : item.name)
-      .filter(name => name.toLowerCase().includes(query))
-      .sort((a, b) => a.localeCompare(b));
+  _getOptions() {
+    const query = this.input.value.toLowerCase();
+    return this._getAllItems().filter(name => name.toLowerCase().includes(query));
   }
 
   _getPriceForMaterial(name) {
-    const key = this.dataKey;
-    if (key !== 'materials') return null;
+    if (this.dataKey !== 'materials') return null;
     const all = [...(appData.materials || []), ...(userAdditions.materials || [])];
     const found = all.find(m => m.name.toLowerCase() === name.toLowerCase());
     return found ? found.price : null;
   }
 
-  _showDropdown() {
-    const opts = this._getOptions();
-    this.dropdown.innerHTML = '';
-    if (opts.length === 0) { this._closeDropdown(); return; }
+  _positionDropdown() {
+    const rect = this.input.getBoundingClientRect();
+    const toggleW = this.toggleBtn ? this.toggleBtn.offsetWidth : 0;
+    this.dropdown.style.top  = (rect.bottom + 2) + 'px';
+    this.dropdown.style.left = rect.left + 'px';
+    this.dropdown.style.width = Math.max(rect.width + toggleW, 200) + 'px';
+  }
 
+  _buildDropdownItems(opts) {
+    this.dropdown.innerHTML = '';
     opts.forEach(opt => {
       const item = document.createElement('div');
       item.className = 'dropdown-item';
@@ -156,27 +189,47 @@ class SmartInput {
       });
       this.dropdown.appendChild(item);
     });
-
-    this.dropdown.classList.remove('hidden');
     this.activeIndex = -1;
+  }
+
+  _showDropdown() {
+    const opts = this._getOptions();
+    if (opts.length === 0) { this._closeDropdown(); return; }
+    if (_activeSmartInput && _activeSmartInput !== this) _activeSmartInput._closeDropdown();
+    _activeSmartInput = this;
+    this._buildDropdownItems(opts);
+    this._positionDropdown();
+    this.dropdown.classList.remove('hidden');
+  }
+
+  _showAllOptions() {
+    const opts = this._getAllItems();
+    if (opts.length === 0) return;
+    if (_activeSmartInput && _activeSmartInput !== this) _activeSmartInput._closeDropdown();
+    _activeSmartInput = this;
+    this._buildDropdownItems(opts);
+    this._positionDropdown();
+    this.dropdown.classList.remove('hidden');
+    this.input.focus();
   }
 
   _closeDropdown() {
     this.dropdown.classList.add('hidden');
     this.activeIndex = -1;
+    if (_activeSmartInput === this) _activeSmartInput = null;
   }
 
   _onInput() {
     const val = this.input.value;
-    if (val.length >= 2) this._showDropdown();
+    if (val.length >= 1) this._showDropdown();
     else this._closeDropdown();
-    this.onSelect(null); // signal value changed without selection
+    this.onSelect(null);
   }
 
   _onKeydown(e) {
     const items = this.dropdown.querySelectorAll('.dropdown-item');
     if (this.dropdown.classList.contains('hidden')) {
-      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && this.input.value.length >= 2) {
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && this.input.value.length >= 1) {
         this._showDropdown();
       }
       return;
@@ -201,7 +254,6 @@ class SmartInput {
       if (this.activeIndex >= 0 && items[this.activeIndex]) {
         this._selectOption(items[this.activeIndex].textContent);
       } else if (items.length > 0) {
-        // Tab with no active item — accept top result
         this._selectOption(items[0].textContent);
       }
     }
@@ -240,6 +292,12 @@ class SmartInput {
   getValue() { return this.input.value.trim(); }
   setValue(val) { this.input.value = val; }
   focus() { this.input.focus(); }
+
+  destroy() {
+    window.removeEventListener('scroll', this._scrollHandler, true);
+    window.removeEventListener('resize', this._scrollHandler);
+    if (this.dropdown.parentNode) this.dropdown.parentNode.removeChild(this.dropdown);
+  }
 }
 
 // ─── Row Management ───────────────────────────────────────────
@@ -251,11 +309,20 @@ function addRow() {
     quantity: 1, material: '', unit_price: 0,
     total_price: 0, description: '',
     descriptionManuallyEdited: false,
-    hidden: false
+    hidden: false,
+    _smartInputs: []  // for cleanup on delete
   };
   rows.push(rowState);
   renderRow(rowState);
   recalcTotals();
+}
+
+function isLastRow(state) {
+  return rows.length > 0 && rows[rows.length - 1].id === state.id;
+}
+
+function autoAddRowIfLast(state) {
+  if (isLastRow(state)) addRow();
 }
 
 function renderRow(state) {
@@ -278,12 +345,14 @@ function renderRow(state) {
     state.room = val || roomInput.getValue();
     autoDescription(state, descInput);
   });
+  state._smartInputs.push(roomInput);
 
   // Category
   const catCell = td('category');
   const catInput = new SmartInput(catCell, 'categories', 'Category', (val) => {
     state.category = val || catInput.getValue();
   });
+  state._smartInputs.push(catInput);
 
   // Worktype
   const wtCell = td('worktype');
@@ -291,6 +360,7 @@ function renderRow(state) {
     state.worktype = val || wtInput.getValue();
     autoDescription(state, descInput);
   });
+  state._smartInputs.push(wtInput);
 
   // Quantity
   const qtyCell = td('quantity');
@@ -299,7 +369,6 @@ function renderRow(state) {
   qtyInp.value = state.quantity;
   qtyInp.min = '0';
   qtyInp.step = '1';
-  qtyInp.style.width = '70px';
   qtyInp.addEventListener('input', () => {
     state.quantity = parseFloat(qtyInp.value) || 0;
     state.total_price = state.quantity * state.unit_price;
@@ -322,6 +391,7 @@ function renderRow(state) {
     autoDescription(state, descInput);
     recalcTotals();
   });
+  state._smartInputs.push(matInput);
 
   // Unit Price
   const upCell = td('unit_price');
@@ -330,7 +400,6 @@ function renderRow(state) {
   unitInp.value = state.unit_price.toFixed(2);
   unitInp.min = '0';
   unitInp.step = '0.01';
-  unitInp.style.width = '90px';
   unitInp.addEventListener('input', () => {
     state.unit_price = parseFloat(unitInp.value) || 0;
     state.total_price = state.quantity * state.unit_price;
@@ -356,10 +425,16 @@ function renderRow(state) {
   });
   descCell.appendChild(descInput);
 
+  // Auto-add a new row when any input in the last row receives focus
+  tr.addEventListener('focusin', () => autoAddRowIfLast(state), { once: false });
+
   // Actions
   const actCell = document.createElement('td');
   actCell.className = 'actions-cell';
   actCell.dataset.col = 'actions';
+
+  const actWrap = document.createElement('div');
+  actWrap.className = 'actions-wrap';
 
   const delBtn = document.createElement('button');
   delBtn.className = 'btn btn-danger';
@@ -378,8 +453,9 @@ function renderRow(state) {
     recalcTotals();
   });
 
-  actCell.appendChild(delBtn);
-  actCell.appendChild(hideBtn);
+  actWrap.appendChild(delBtn);
+  actWrap.appendChild(hideBtn);
+  actCell.appendChild(actWrap);
   tr.appendChild(actCell);
 
   tbody.appendChild(tr);
@@ -402,6 +478,8 @@ function autoDescription(state, descInput) {
 }
 
 function deleteRow(id, tr) {
+  const row = rows.find(r => r.id === id);
+  if (row) row._smartInputs.forEach(si => si.destroy());
   rows = rows.filter(r => r.id !== id);
   tr.remove();
   recalcTotals();
@@ -453,9 +531,9 @@ function setupExport() {
 
     // Then open mailto
     const workAddress = document.getElementById('work-address').value.trim() || '(address not provided)';
-    const subject = encodeURIComponent("Vic's Takeoff");
+    const subject = encodeURIComponent("Vic's Takeoff – Material Takeoff, Scope of Work & Estimate");
     const body = encodeURIComponent(
-      `Hello,\n\nI just made a takeoff for ${workAddress} using Vic's Takeoff, please see attached.\n\nThank you`
+      `Hello,\n\nPlease find attached the material takeoff, scope of work, and estimate for ${workAddress}.\n\nThank you`
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
 

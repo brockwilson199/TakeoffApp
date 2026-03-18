@@ -11,7 +11,7 @@
   <header>
     <div>
       <h1>⚡ Vic's Takeoff</h1>
-      <p>Material Takeoff &amp; Scope of Work Builder</p>
+      <p>Material Takeoff, Scope of Work &amp; Estimate Builder</p>
     </div>
   </header>
 
@@ -20,16 +20,27 @@
     <!-- ── Section 1: Job Details ── -->
     <section class="card" id="job-details">
       <h2>Job Details</h2>
+      <p class="required-legend"><span class="required-star">*</span> Required</p>
       <div class="form-grid">
 
         <div class="form-group">
-          <label for="customer-name">Customer Name</label>
-          <input type="text" id="customer-name" placeholder="John Smith" />
+          <label for="customer-name">Customer Name <span class="required-star">*</span></label>
+          <input type="text" id="customer-name" placeholder="John Smith" required />
         </div>
 
         <div class="form-group">
-          <label for="work-address">Work Address</label>
-          <input type="text" id="work-address" placeholder="123 Main St, Honolulu, HI" />
+          <label for="work-address">Work Address <span class="required-star">*</span></label>
+          <input type="text" id="work-address" placeholder="123 Main St, Honolulu, HI" required />
+        </div>
+
+        <div class="form-group">
+          <label for="customer-phone">Customer Phone <span class="required-star">*</span></label>
+          <input type="tel" id="customer-phone" placeholder="(808) 555-0100" required />
+        </div>
+
+        <div class="form-group">
+          <label for="customer-email">Customer Email</label>
+          <input type="email" id="customer-email" placeholder="customer@email.com" />
         </div>
 
         <div class="form-group">
@@ -40,16 +51,6 @@
         <div class="form-group">
           <label for="business-address">Business Address</label>
           <input type="text" id="business-address" placeholder="456 Business Blvd" />
-        </div>
-
-        <div class="form-group">
-          <label for="customer-email">Customer Email</label>
-          <input type="email" id="customer-email" placeholder="customer@email.com" />
-        </div>
-
-        <div class="form-group">
-          <label for="customer-phone">Customer Phone</label>
-          <input type="tel" id="customer-phone" placeholder="(808) 555-0100" />
         </div>
 
         <div class="form-group">
@@ -70,16 +71,29 @@
       <div class="section-header">
         <h2>Line Items</h2>
         <div class="header-actions">
-          <button id="add-row-btn" class="btn btn-primary">+ Add Row</button>
-          <button id="toggle-columns-btn" class="btn btn-secondary">Hide Columns ▾</button>
+          <button id="settings-btn" class="btn btn-icon-gear" title="Table settings">&#9881;</button>
         </div>
       </div>
 
-      <!-- Column visibility panel -->
-      <div id="column-panel" class="column-panel hidden"></div>
+      <!-- Settings panel -->
+      <div id="settings-panel" class="settings-panel hidden">
+        <div class="settings-panel-title">Show / Hide Columns</div>
+        <div id="column-panel" class="column-panel"></div>
+      </div>
 
-      <div class="table-wrapper">
+      <div class="table-wrapper" id="table-wrapper">
         <table id="line-items-table">
+          <colgroup>
+            <col class="col-room">        <!-- Room:        120px default -->
+            <col class="col-category">    <!-- Category:    120px default -->
+            <col class="col-worktype">    <!-- Work Type:   120px default -->
+            <col class="col-quantity">    <!-- Qty:          70px default -->
+            <col class="col-material">    <!-- Material:    140px default -->
+            <col class="col-unit_price">  <!-- Unit Price:   90px default -->
+            <col class="col-total_price"> <!-- Total Price:  90px default -->
+            <col class="col-description"> <!-- Description: flex remaining -->
+            <col class="col-actions">     <!-- Actions:      80px default -->
+          </colgroup>
           <thead>
             <tr>
               <th data-col="room">Room</th>
@@ -97,6 +111,9 @@
             <!-- rows inserted by app.js -->
           </tbody>
         </table>
+      </div>
+      <div class="add-row-footer">
+        <button id="add-row-btn" class="btn-add-row" title="Add row">+</button>
       </div>
     </section>
 
