@@ -173,15 +173,31 @@ tbody td { padding: 5px 6px; vertical-align: middle; }
 /* Row actions cell */
 td.actions-cell { white-space: nowrap; display: flex; gap: 4px; align-items: center; padding: 5px 6px; }
 
+/* ===== Required Fields ===== */
+.required-star { color: var(--danger); font-weight: 700; }
+.required-legend { font-size: 12px; color: var(--danger); font-weight: 600; margin-bottom: 12px; }
+
 /* ===== Smart Input ===== */
 .smart-input-wrap {
   position: relative;
   min-width: 120px;
+  display: flex;
+  align-items: stretch;
 }
-.smart-input-wrap input,
+.smart-input-wrap input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px 0 0 4px;
+  padding: 5px 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
 td input[type="number"],
 td input[type="text"] {
-  width: 100%;
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 5px 8px;
@@ -202,20 +218,33 @@ td input.description-input { min-width: 180px; width: 100%; }
 .total-price-cell { font-weight: 600; color: var(--primary); white-space: nowrap; padding: 5px 8px; }
 .readonly-cell { color: var(--muted); font-size: 13px; }
 
-/* Dropdown */
+/* Smart Input toggle button */
+.smart-toggle-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  background: var(--bg);
+  color: var(--muted);
+  padding: 0 6px;
+  font-size: 11px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s;
+}
+.smart-toggle-btn:hover { background: var(--border); color: var(--text); }
+
+/* Dropdown — portaled to body, always on top */
 .smart-dropdown {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 0;
-  right: 0;
+  position: fixed;
   min-width: 200px;
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  z-index: 99999;
 }
 .smart-dropdown.hidden { display: none; }
 .dropdown-item {

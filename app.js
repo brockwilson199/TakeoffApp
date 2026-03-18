@@ -93,16 +93,33 @@ class SmartInput {
     this.input.type = 'text';
     this.input.placeholder = placeholder || '';
 
+    // Dropdown portaled to body so it always renders on top of table/overflow
     this.dropdown = document.createElement('div');
     this.dropdown.className = 'smart-dropdown hidden';
+    document.body.appendChild(this.dropdown);
+
+    // Toggle button — shows full list on click
+    this.toggleBtn = document.createElement('button');
+    this.toggleBtn.type = 'button';
+    this.toggleBtn.className = 'smart-toggle-btn';
+    this.toggleBtn.textContent = '▾';
+    this.toggleBtn.title = 'Show all options';
+    this.toggleBtn.addEventListener('mousedown', e => {
+      e.preventDefault();
+      if (!this.dropdown.classList.contains('hidden')) {
+        this._closeDropdown();
+      } else {
+        this._showAllOptions();
+      }
+    });
 
     container.appendChild(this.input);
-    container.appendChild(this.dropdown);
+    container.appendChild(this.toggleBtn);
 
     this.input.addEventListener('input', () => this._onInput());
     this.input.addEventListener('keydown', e => this._onKeydown(e));
     this.input.addEventListener('focus', () => {
-      if (this.input.value.length >= 2) this._showDropdown();
+      if (this.input.value.length >= 1) this._showDropdown();
     });
     this.input.addEventListener('blur', () => {
       setTimeout(() => {
@@ -110,14 +127,20 @@ class SmartInput {
         this._closeDropdown();
       }, 180);
     });
+
+    // Reposition on scroll/resize; close if input scrolls out of view
+    this._scrollHandler = () => {
+      if (!this.dropdown.classList.contains('hidden')) {
+        this._positionDropdown();
+      }
+    };
+    window.addEventListener('scroll', this._scrollHandler, true);
+    window.addEventListener('resize', this._scrollHandler);
   }
 
-  _getOptions() {
-    const query = this.input.value.toLowerCase();
+  _getAllItems() {
     const key = this.dataKey;
-    let source = appData[key] || [];
-
-    // Merge user-added entries
+    const source = appData[key] || [];
     const extra = userAdditions[key] || [];
     const all = [
       ...source,
@@ -126,26 +149,32 @@ class SmartInput {
         (typeof e === 'string' ? e : e.name).toLowerCase()
       ))
     ];
+    return all.map(item => typeof item === 'string' ? item : item.name)
+              .sort((a, b) => a.localeCompare(b));
+  }
 
-    return all
-      .map(item => typeof item === 'string' ? item : item.name)
-      .filter(name => name.toLowerCase().includes(query))
-      .sort((a, b) => a.localeCompare(b));
+  _getOptions() {
+    const query = this.input.value.toLowerCase();
+    return this._getAllItems().filter(name => name.toLowerCase().includes(query));
   }
 
   _getPriceForMaterial(name) {
-    const key = this.dataKey;
-    if (key !== 'materials') return null;
+    if (this.dataKey !== 'materials') return null;
     const all = [...(appData.materials || []), ...(userAdditions.materials || [])];
     const found = all.find(m => m.name.toLowerCase() === name.toLowerCase());
     return found ? found.price : null;
   }
 
-  _showDropdown() {
-    const opts = this._getOptions();
-    this.dropdown.innerHTML = '';
-    if (opts.length === 0) { this._closeDropdown(); return; }
+  _positionDropdown() {
+    const rect = this.input.getBoundingClientRect();
+    const toggleW = this.toggleBtn ? this.toggleBtn.offsetWidth : 0;
+    this.dropdown.style.top  = (rect.bottom + 2) + 'px';
+    this.dropdown.style.left = rect.left + 'px';
+    this.dropdown.style.width = Math.max(rect.width + toggleW, 200) + 'px';
+  }
 
+  _buildDropdownItems(opts) {
+    this.dropdown.innerHTML = '';
     opts.forEach(opt => {
       const item = document.createElement('div');
       item.className = 'dropdown-item';
@@ -156,9 +185,24 @@ class SmartInput {
       });
       this.dropdown.appendChild(item);
     });
-
-    this.dropdown.classList.remove('hidden');
     this.activeIndex = -1;
+  }
+
+  _showDropdown() {
+    const opts = this._getOptions();
+    if (opts.length === 0) { this._closeDropdown(); return; }
+    this._buildDropdownItems(opts);
+    this._positionDropdown();
+    this.dropdown.classList.remove('hidden');
+  }
+
+  _showAllOptions() {
+    const opts = this._getAllItems();
+    if (opts.length === 0) return;
+    this._buildDropdownItems(opts);
+    this._positionDropdown();
+    this.dropdown.classList.remove('hidden');
+    this.input.focus();
   }
 
   _closeDropdown() {
@@ -168,15 +212,15 @@ class SmartInput {
 
   _onInput() {
     const val = this.input.value;
-    if (val.length >= 2) this._showDropdown();
+    if (val.length >= 1) this._showDropdown();
     else this._closeDropdown();
-    this.onSelect(null); // signal value changed without selection
+    this.onSelect(null);
   }
 
   _onKeydown(e) {
     const items = this.dropdown.querySelectorAll('.dropdown-item');
     if (this.dropdown.classList.contains('hidden')) {
-      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && this.input.value.length >= 2) {
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && this.input.value.length >= 1) {
         this._showDropdown();
       }
       return;
@@ -201,7 +245,6 @@ class SmartInput {
       if (this.activeIndex >= 0 && items[this.activeIndex]) {
         this._selectOption(items[this.activeIndex].textContent);
       } else if (items.length > 0) {
-        // Tab with no active item — accept top result
         this._selectOption(items[0].textContent);
       }
     }
@@ -240,6 +283,12 @@ class SmartInput {
   getValue() { return this.input.value.trim(); }
   setValue(val) { this.input.value = val; }
   focus() { this.input.focus(); }
+
+  destroy() {
+    window.removeEventListener('scroll', this._scrollHandler, true);
+    window.removeEventListener('resize', this._scrollHandler);
+    if (this.dropdown.parentNode) this.dropdown.parentNode.removeChild(this.dropdown);
+  }
 }
 
 // ─── Row Management ───────────────────────────────────────────
@@ -251,7 +300,8 @@ function addRow() {
     quantity: 1, material: '', unit_price: 0,
     total_price: 0, description: '',
     descriptionManuallyEdited: false,
-    hidden: false
+    hidden: false,
+    _smartInputs: []  // for cleanup on delete
   };
   rows.push(rowState);
   renderRow(rowState);
@@ -278,12 +328,14 @@ function renderRow(state) {
     state.room = val || roomInput.getValue();
     autoDescription(state, descInput);
   });
+  state._smartInputs.push(roomInput);
 
   // Category
   const catCell = td('category');
   const catInput = new SmartInput(catCell, 'categories', 'Category', (val) => {
     state.category = val || catInput.getValue();
   });
+  state._smartInputs.push(catInput);
 
   // Worktype
   const wtCell = td('worktype');
@@ -291,6 +343,7 @@ function renderRow(state) {
     state.worktype = val || wtInput.getValue();
     autoDescription(state, descInput);
   });
+  state._smartInputs.push(wtInput);
 
   // Quantity
   const qtyCell = td('quantity');
@@ -322,6 +375,7 @@ function renderRow(state) {
     autoDescription(state, descInput);
     recalcTotals();
   });
+  state._smartInputs.push(matInput);
 
   // Unit Price
   const upCell = td('unit_price');
@@ -402,6 +456,8 @@ function autoDescription(state, descInput) {
 }
 
 function deleteRow(id, tr) {
+  const row = rows.find(r => r.id === id);
+  if (row) row._smartInputs.forEach(si => si.destroy());
   rows = rows.filter(r => r.id !== id);
   tr.remove();
   recalcTotals();
@@ -453,9 +509,9 @@ function setupExport() {
 
     // Then open mailto
     const workAddress = document.getElementById('work-address').value.trim() || '(address not provided)';
-    const subject = encodeURIComponent("Vic's Takeoff");
+    const subject = encodeURIComponent("Vic's Takeoff – Material Takeoff, Scope of Work & Estimate");
     const body = encodeURIComponent(
-      `Hello,\n\nI just made a takeoff for ${workAddress} using Vic's Takeoff, please see attached.\n\nThank you`
+      `Hello,\n\nPlease find attached the material takeoff, scope of work, and estimate for ${workAddress}.\n\nThank you`
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
 
