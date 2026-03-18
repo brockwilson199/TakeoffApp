@@ -126,14 +126,41 @@ main {
 .btn-danger:hover { background: var(--danger); color: #fff; }
 .btn-icon { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 4px 8px; font-size: 12px; }
 .btn-icon:hover { background: var(--bg); color: var(--text); }
+.btn-icon-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: var(--radius);
+  font-size: 17px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.15s;
+  line-height: 1;
+}
+.btn-icon-gear:hover { background: var(--bg); color: var(--primary); border-color: var(--primary); }
 
-/* ===== Column Visibility Panel ===== */
-.column-panel {
+/* ===== Settings Panel ===== */
+.settings-panel {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 16px;
+  padding: 14px 16px;
   margin-bottom: 12px;
+}
+.settings-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.column-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -147,6 +174,34 @@ main {
   user-select: none;
 }
 .column-panel input[type="checkbox"] { cursor: pointer; }
+
+/* ===== Add Row Footer ===== */
+.add-row-footer {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 2px;
+}
+.btn-add-row {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+.btn-add-row:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(245,158,11,0.07);
+}
 
 /* ===== Table ===== */
 .table-wrapper { overflow-x: auto; }
@@ -169,6 +224,24 @@ tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; 
 tbody tr:hover { background: var(--row-hover); }
 tbody tr.row-hidden { opacity: 0.4; }
 tbody td { padding: 5px 6px; vertical-align: middle; }
+
+/* ===== Column default widths (colgroup) ===== */
+col.col-room        { width: 120px; }
+col.col-category    { width: 120px; }
+col.col-worktype    { width: 120px; }
+col.col-quantity    { width: 70px;  }
+col.col-material    { width: 140px; }
+col.col-unit_price  { width: 90px;  }
+col.col-total_price { width: 90px;  }
+col.col-description { width: auto;  } /* flex: takes remaining space */
+col.col-actions     { width: 80px;  }
+
+/* Inputs fill their cell so they stretch/shrink with the column */
+tbody td input[type="text"],
+tbody td input[type="number"] {
+  width: 100%;
+  box-sizing: border-box;
+}
 
 /* Row actions cell */
 td.actions-cell { white-space: nowrap; padding: 5px 6px; vertical-align: middle; }

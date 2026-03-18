@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupTotals();
   setupExport();
   document.getElementById('add-row-btn').addEventListener('click', addRow);
-  document.getElementById('toggle-columns-btn').addEventListener('click', toggleColumnPanel);
+  document.getElementById('settings-btn').addEventListener('click', toggleSettingsPanel);
   addRow(); // start with one empty row
 });
 
@@ -48,7 +48,7 @@ async function loadData() {
 // ─── Column Visibility ────────────────────────────────────────
 function buildColumnPanel() {
   const panel = document.getElementById('column-panel');
-  panel.innerHTML = '<span style="font-size:12px;font-weight:700;color:var(--muted);align-self:center">SHOW/HIDE:</span>';
+  panel.innerHTML = '';
   COLUMNS.forEach(col => {
     const lbl = document.createElement('label');
     const cb = document.createElement('input');
@@ -61,9 +61,8 @@ function buildColumnPanel() {
   });
 }
 
-function toggleColumnPanel() {
-  const panel = document.getElementById('column-panel');
-  panel.classList.toggle('hidden');
+function toggleSettingsPanel() {
+  document.getElementById('settings-panel').classList.toggle('hidden');
 }
 
 function toggleColumn(key, visible) {
@@ -81,6 +80,8 @@ function toggleColumn(key, visible) {
 }
 
 // ─── Smart Autocomplete Input ─────────────────────────────────
+let _activeSmartInput = null; // only one dropdown open at a time
+
 class SmartInput {
   constructor(container, dataKey, placeholder, onSelect) {
     this.dataKey = dataKey;
@@ -122,7 +123,7 @@ class SmartInput {
     this.input.addEventListener('input', () => this._onInput());
     this.input.addEventListener('keydown', e => this._onKeydown(e));
     this.input.addEventListener('focus', () => {
-      if (this.input.value.length >= 1) this._showDropdown();
+      if (this.input.value.length >= 1 && this.dropdown.classList.contains('hidden')) this._showDropdown();
     });
     this.input.addEventListener('blur', () => {
       setTimeout(() => {
@@ -194,6 +195,8 @@ class SmartInput {
   _showDropdown() {
     const opts = this._getOptions();
     if (opts.length === 0) { this._closeDropdown(); return; }
+    if (_activeSmartInput && _activeSmartInput !== this) _activeSmartInput._closeDropdown();
+    _activeSmartInput = this;
     this._buildDropdownItems(opts);
     this._positionDropdown();
     this.dropdown.classList.remove('hidden');
@@ -202,6 +205,8 @@ class SmartInput {
   _showAllOptions() {
     const opts = this._getAllItems();
     if (opts.length === 0) return;
+    if (_activeSmartInput && _activeSmartInput !== this) _activeSmartInput._closeDropdown();
+    _activeSmartInput = this;
     this._buildDropdownItems(opts);
     this._positionDropdown();
     this.dropdown.classList.remove('hidden');
@@ -211,6 +216,7 @@ class SmartInput {
   _closeDropdown() {
     this.dropdown.classList.add('hidden');
     this.activeIndex = -1;
+    if (_activeSmartInput === this) _activeSmartInput = null;
   }
 
   _onInput() {
@@ -311,6 +317,14 @@ function addRow() {
   recalcTotals();
 }
 
+function isLastRow(state) {
+  return rows.length > 0 && rows[rows.length - 1].id === state.id;
+}
+
+function autoAddRowIfLast(state) {
+  if (isLastRow(state)) addRow();
+}
+
 function renderRow(state) {
   const tbody = document.getElementById('line-items-body');
   const tr = document.createElement('tr');
@@ -355,7 +369,6 @@ function renderRow(state) {
   qtyInp.value = state.quantity;
   qtyInp.min = '0';
   qtyInp.step = '1';
-  qtyInp.style.width = '70px';
   qtyInp.addEventListener('input', () => {
     state.quantity = parseFloat(qtyInp.value) || 0;
     state.total_price = state.quantity * state.unit_price;
@@ -387,7 +400,6 @@ function renderRow(state) {
   unitInp.value = state.unit_price.toFixed(2);
   unitInp.min = '0';
   unitInp.step = '0.01';
-  unitInp.style.width = '90px';
   unitInp.addEventListener('input', () => {
     state.unit_price = parseFloat(unitInp.value) || 0;
     state.total_price = state.quantity * state.unit_price;
@@ -412,6 +424,9 @@ function renderRow(state) {
     state.descriptionManuallyEdited = descInput.value !== '';
   });
   descCell.appendChild(descInput);
+
+  // Auto-add a new row when any input in the last row receives focus
+  tr.addEventListener('focusin', () => autoAddRowIfLast(state), { once: false });
 
   // Actions
   const actCell = document.createElement('td');
