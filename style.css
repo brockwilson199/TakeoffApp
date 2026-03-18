@@ -171,7 +171,8 @@ tbody tr.row-hidden { opacity: 0.4; }
 tbody td { padding: 5px 6px; vertical-align: middle; }
 
 /* Row actions cell */
-td.actions-cell { white-space: nowrap; display: flex; gap: 4px; align-items: center; padding: 5px 6px; }
+td.actions-cell { white-space: nowrap; padding: 5px 6px; vertical-align: middle; }
+.actions-wrap { display: flex; gap: 4px; align-items: center; }
 
 /* ===== Required Fields ===== */
 .required-star { color: var(--danger); font-weight: 700; }

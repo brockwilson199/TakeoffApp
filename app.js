@@ -87,7 +87,10 @@ class SmartInput {
     this.onSelect = onSelect || (() => {});
     this.activeIndex = -1;
 
-    container.classList.add('smart-input-wrap');
+    // Inner wrapper keeps flex layout off the td itself (preserves table-cell display)
+    const wrap = document.createElement('div');
+    wrap.className = 'smart-input-wrap';
+    container.appendChild(wrap);
 
     this.input = document.createElement('input');
     this.input.type = 'text';
@@ -113,8 +116,8 @@ class SmartInput {
       }
     });
 
-    container.appendChild(this.input);
-    container.appendChild(this.toggleBtn);
+    wrap.appendChild(this.input);
+    wrap.appendChild(this.toggleBtn);
 
     this.input.addEventListener('input', () => this._onInput());
     this.input.addEventListener('keydown', e => this._onKeydown(e));
@@ -415,6 +418,9 @@ function renderRow(state) {
   actCell.className = 'actions-cell';
   actCell.dataset.col = 'actions';
 
+  const actWrap = document.createElement('div');
+  actWrap.className = 'actions-wrap';
+
   const delBtn = document.createElement('button');
   delBtn.className = 'btn btn-danger';
   delBtn.textContent = '✕';
@@ -432,8 +438,9 @@ function renderRow(state) {
     recalcTotals();
   });
 
-  actCell.appendChild(delBtn);
-  actCell.appendChild(hideBtn);
+  actWrap.appendChild(delBtn);
+  actWrap.appendChild(hideBtn);
+  actCell.appendChild(actWrap);
   tr.appendChild(actCell);
 
   tbody.appendChild(tr);
