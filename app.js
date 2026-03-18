@@ -17,11 +17,11 @@ const COLUMNS = [
   { key: 'room',        label: 'Room' },
   { key: 'category',    label: 'Category' },
   { key: 'worktype',    label: 'Work Type' },
-  { key: 'quantity',    label: 'Qty' },
   { key: 'material',    label: 'Material' },
-  { key: 'unit_price',  label: 'Unit Price' },
-  { key: 'total_price', label: 'Total Price' },
   { key: 'description', label: 'Description' },
+  { key: 'unit_price',  label: 'Unit Price' },
+  { key: 'quantity',    label: 'Qty' },
+  { key: 'total_price', label: 'Total Price' },
 ];
 
 // ─── Init ─────────────────────────────────────────────────────
@@ -32,6 +32,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupExport();
   document.getElementById('add-row-btn').addEventListener('click', addRow);
   document.getElementById('settings-btn').addEventListener('click', toggleSettingsPanel);
+
+  // Select-all on focus for every number input in the table
+  document.getElementById('line-items-body').addEventListener('focusin', e => {
+    if (e.target.matches('input[type="number"]')) e.target.select();
+  });
   addRow(); // start with one empty row
 });
 
@@ -339,6 +344,29 @@ function renderRow(state) {
     return cell;
   }
 
+  // Description input declared early — referenced in room/worktype/material callbacks
+  const descInput = document.createElement('input');
+  descInput.type = 'text';
+  descInput.className = 'description-input';
+  descInput.placeholder = 'Auto-generated or type here';
+  descInput.addEventListener('input', () => {
+    state.description = descInput.value;
+    state.descriptionManuallyEdited = descInput.value !== '';
+  });
+
+  // Unit Price input declared early — referenced in material callback
+  const unitInp = document.createElement('input');
+  unitInp.type = 'number';
+  unitInp.value = state.unit_price.toFixed(2);
+  unitInp.min = '0';
+  unitInp.step = '0.01';
+  unitInp.addEventListener('input', () => {
+    state.unit_price = parseFloat(unitInp.value) || 0;
+    state.total_price = state.quantity * state.unit_price;
+    updateTotalCell(tr, state.total_price);
+    recalcTotals();
+  });
+
   // Room
   const roomCell = td('room');
   const roomInput = new SmartInput(roomCell, 'rooms', 'Room', (val) => {
@@ -362,6 +390,29 @@ function renderRow(state) {
   });
   state._smartInputs.push(wtInput);
 
+  // Material
+  const matCell = td('material');
+  const matInput = new SmartInput(matCell, 'materials', 'Material', (val, price) => {
+    state.material = val || matInput.getValue();
+    if (price !== null && price !== undefined) {
+      state.unit_price = price;
+      unitInp.value = price.toFixed(2);
+    }
+    state.total_price = state.quantity * state.unit_price;
+    updateTotalCell(tr, state.total_price);
+    autoDescription(state, descInput);
+    recalcTotals();
+  });
+  state._smartInputs.push(matInput);
+
+  // Description
+  const descCell = td('description');
+  descCell.appendChild(descInput);
+
+  // Unit Price
+  const upCell = td('unit_price');
+  upCell.appendChild(unitInp);
+
   // Quantity
   const qtyCell = td('quantity');
   const qtyInp = document.createElement('input');
@@ -378,55 +429,22 @@ function renderRow(state) {
   });
   qtyCell.appendChild(qtyInp);
 
-  // Material
-  const matCell = td('material');
-  const matInput = new SmartInput(matCell, 'materials', 'Material', (val, price) => {
-    state.material = val || matInput.getValue();
-    if (price !== null && price !== undefined) {
-      state.unit_price = price;
-      unitInp.value = price.toFixed(2);
-    }
-    state.total_price = state.quantity * state.unit_price;
-    updateTotalCell(tr, state.total_price);
-    autoDescription(state, descInput);
-    recalcTotals();
-  });
-  state._smartInputs.push(matInput);
-
-  // Unit Price
-  const upCell = td('unit_price');
-  const unitInp = document.createElement('input');
-  unitInp.type = 'number';
-  unitInp.value = state.unit_price.toFixed(2);
-  unitInp.min = '0';
-  unitInp.step = '0.01';
-  unitInp.addEventListener('input', () => {
-    state.unit_price = parseFloat(unitInp.value) || 0;
-    state.total_price = state.quantity * state.unit_price;
-    updateTotalCell(tr, state.total_price);
-    recalcTotals();
-  });
-  upCell.appendChild(unitInp);
-
   // Total Price (readonly)
   const tpCell = td('total_price');
   tpCell.className = 'total-price-cell';
   tpCell.textContent = '$0.00';
 
-  // Description
-  const descCell = td('description');
-  const descInput = document.createElement('input');
-  descInput.type = 'text';
-  descInput.className = 'description-input';
-  descInput.placeholder = 'Auto-generated or type here';
-  descInput.addEventListener('input', () => {
-    state.description = descInput.value;
-    state.descriptionManuallyEdited = descInput.value !== '';
+  // Auto-add a new row when focus leaves the last row and 2+ fields are filled
+  tr.addEventListener('focusout', () => {
+    setTimeout(() => {
+      if (tr.contains(document.activeElement)) return;
+      if (!isLastRow(state)) return;
+      const filled = [state.room, state.category, state.worktype, state.material, state.description]
+        .filter(v => v && v.trim() !== '').length
+        + (state.unit_price > 0 ? 1 : 0);
+      if (filled >= 2) addRow();
+    }, 0);
   });
-  descCell.appendChild(descInput);
-
-  // Auto-add a new row when any input in the last row receives focus
-  tr.addEventListener('focusin', () => autoAddRowIfLast(state), { once: false });
 
   // Actions
   const actCell = document.createElement('td');
