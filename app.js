@@ -12,6 +12,90 @@ let rows = [];        // Array of row state objects
 let rowIdCounter = 0;
 const hiddenColumns = new Set();
 
+// ─── Cache ────────────────────────────────────────────────────
+const CACHE_KEY = 'takeoff_cache';
+let _clearCacheTimer = null;
+let _saveCacheTimer = null;
+
+function debouncedSaveCache() {
+  clearTimeout(_saveCacheTimer);
+  _saveCacheTimer = setTimeout(saveCache, 300);
+}
+
+function saveCache() {
+  const job = {};
+  document.querySelectorAll('#job-details input').forEach(inp => {
+    if (inp.id) job[inp.id] = inp.value;
+  });
+  const cachedRows = rows.map(r => ({
+    id: r.id, room: r.room, category: r.category, worktype: r.worktype,
+    material: r.material, description: r.description, unit_price: r.unit_price,
+    quantity: r.quantity, total_price: r.total_price,
+    descriptionManuallyEdited: r.descriptionManuallyEdited, hidden: r.hidden,
+  }));
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      job, rows: cachedRows, userAdditions,
+      percentTotal: document.getElementById('percent-total').value,
+    }));
+  } catch (e) { /* storage full or unavailable */ }
+}
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const cache = JSON.parse(raw);
+
+    if (cache.userAdditions) userAdditions = cache.userAdditions;
+
+    if (cache.job) {
+      Object.entries(cache.job).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+      });
+    }
+
+    if (cache.rows && cache.rows.length > 0) {
+      rowIdCounter = Math.max(...cache.rows.map(r => r.id), 0);
+      cache.rows.forEach(r => {
+        const rowState = {
+          id: r.id, room: r.room || '', category: r.category || '',
+          worktype: r.worktype || '', material: r.material || '',
+          description: r.description || '', unit_price: r.unit_price || 0,
+          quantity: r.quantity != null ? r.quantity : 1,
+          total_price: r.total_price || 0,
+          descriptionManuallyEdited: r.descriptionManuallyEdited || false,
+          hidden: r.hidden || false, _smartInputs: [],
+        };
+        rows.push(rowState);
+        renderRow(rowState);
+        const tr = document.querySelector(`tr[data-row-id="${r.id}"]`);
+        if (tr) updateTotalCell(tr, rowState.total_price);
+      });
+      recalcTotals();
+    }
+
+    if (cache.percentTotal !== undefined) {
+      document.getElementById('percent-total').value = cache.percentTotal;
+      recalcTotals();
+    }
+
+    return cache.rows && cache.rows.length > 0;
+  } catch (e) {
+    console.warn('Failed to load cache:', e);
+    return false;
+  }
+}
+
+function scheduleCacheClear() {
+  if (_clearCacheTimer) clearTimeout(_clearCacheTimer);
+  _clearCacheTimer = setTimeout(() => {
+    localStorage.removeItem(CACHE_KEY);
+    _clearCacheTimer = null;
+  }, 5 * 60 * 1000);
+}
+
 // Columns that can be toggled (not 'actions')
 const COLUMNS = [
   { key: 'room',        label: 'Room' },
@@ -23,6 +107,26 @@ const COLUMNS = [
   { key: 'quantity',    label: 'Qty' },
   { key: 'total_price', label: 'Total Price' },
 ];
+
+// Base proportional ratios for every column (actions is never toggled)
+const COL_RATIOS = {
+  room: 10, category: 10, worktype: 10, material: 11,
+  description: 27, unit_price: 9, quantity: 7, total_price: 9, actions: 7,
+};
+
+function updateColWidths() {
+  const totalRatio = Object.keys(COL_RATIOS)
+    .filter(k => !hiddenColumns.has(k))
+    .reduce((sum, k) => sum + COL_RATIOS[k], 0);
+
+  Object.keys(COL_RATIOS).forEach(k => {
+    const col = document.querySelector(`col.col-${k}`);
+    if (!col) return;
+    col.style.width = hiddenColumns.has(k)
+      ? '0'
+      : (COL_RATIOS[k] / totalRatio * 100).toFixed(2) + '%';
+  });
+}
 
 // ─── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -37,7 +141,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('line-items-body').addEventListener('focusin', e => {
     if (e.target.matches('input[type="number"]')) e.target.select();
   });
-  addRow(); // start with one empty row
+
+  // Save cache on any input change
+  document.addEventListener('input', debouncedSaveCache);
+
+  // Restore from cache, or start with one empty row
+  const restored = loadCache();
+  if (!restored) addRow();
 });
 
 async function loadData() {
@@ -82,6 +192,9 @@ function toggleColumn(key, visible) {
   document.querySelectorAll(`tbody td[data-col="${key}"]`).forEach(td => {
     td.classList.toggle('col-hidden', !visible);
   });
+
+  // Redistribute remaining column widths proportionally
+  updateColWidths();
 }
 
 // ─── Smart Autocomplete Input ─────────────────────────────────
@@ -349,6 +462,7 @@ function renderRow(state) {
   descInput.type = 'text';
   descInput.className = 'description-input';
   descInput.placeholder = 'Auto-generated or type here';
+  descInput.value = state.description || '';
   descInput.addEventListener('input', () => {
     state.description = descInput.value;
     state.descriptionManuallyEdited = descInput.value !== '';
@@ -372,23 +486,29 @@ function renderRow(state) {
   const roomInput = new SmartInput(roomCell, 'rooms', 'Room', (val) => {
     state.room = val || roomInput.getValue();
     autoDescription(state, descInput);
+    debouncedSaveCache();
   });
   state._smartInputs.push(roomInput);
+  roomInput.setValue(state.room);
 
   // Category
   const catCell = td('category');
   const catInput = new SmartInput(catCell, 'categories', 'Category', (val) => {
     state.category = val || catInput.getValue();
+    debouncedSaveCache();
   });
   state._smartInputs.push(catInput);
+  catInput.setValue(state.category);
 
   // Worktype
   const wtCell = td('worktype');
   const wtInput = new SmartInput(wtCell, 'worktypes', 'Work Type', (val) => {
     state.worktype = val || wtInput.getValue();
     autoDescription(state, descInput);
+    debouncedSaveCache();
   });
   state._smartInputs.push(wtInput);
+  wtInput.setValue(state.worktype);
 
   // Material
   const matCell = td('material');
@@ -404,6 +524,7 @@ function renderRow(state) {
     recalcTotals();
   });
   state._smartInputs.push(matInput);
+  matInput.setValue(state.material);
 
   // Description
   const descCell = td('description');
@@ -462,7 +583,7 @@ function renderRow(state) {
 
   const hideBtn = document.createElement('button');
   hideBtn.className = 'btn btn-icon';
-  hideBtn.textContent = '👁';
+  hideBtn.textContent = state.hidden ? '🚫' : '👁';
   hideBtn.title = 'Toggle row visibility (hidden rows excluded from totals)';
   hideBtn.addEventListener('click', () => {
     state.hidden = !state.hidden;
@@ -477,6 +598,7 @@ function renderRow(state) {
   tr.appendChild(actCell);
 
   tbody.appendChild(tr);
+  if (state.hidden) tr.classList.add('row-hidden');
 }
 
 function updateTotalCell(tr, value) {
@@ -501,6 +623,7 @@ function deleteRow(id, tr) {
   rows = rows.filter(r => r.id !== id);
   tr.remove();
   recalcTotals();
+  debouncedSaveCache();
 }
 
 // ─── Totals ───────────────────────────────────────────────────
@@ -532,6 +655,7 @@ function recalcTotals() {
 
   const pct = parseFloat(document.getElementById('percent-total').value) || 100;
   document.getElementById('final-total').value = (baseTotalValue * pct / 100).toFixed(2);
+  debouncedSaveCache();
 }
 
 // ─── Export ───────────────────────────────────────────────────
@@ -540,12 +664,14 @@ function setupExport() {
     const yaml = buildTakeoffYaml();
     downloadText(yaml, 'takeoff.yaml', 'text/yaml');
     showBanner('takeoff.yaml downloaded!', 'success');
+    scheduleCacheClear();
   });
 
   document.getElementById('email-btn').addEventListener('click', () => {
     // First download the file
     const yaml = buildTakeoffYaml();
     downloadText(yaml, 'takeoff.yaml', 'text/yaml');
+    scheduleCacheClear();
 
     // Then open mailto
     const workAddress = document.getElementById('work-address').value.trim() || '(address not provided)';

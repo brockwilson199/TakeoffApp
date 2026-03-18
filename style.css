@@ -208,7 +208,8 @@ main {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
+  min-width: 700px;
+  table-layout: fixed;
 }
 thead th {
   background: var(--primary);
@@ -225,16 +226,16 @@ tbody tr:hover { background: var(--row-hover); }
 tbody tr.row-hidden { opacity: 0.4; }
 tbody td { padding: 5px 6px; vertical-align: middle; }
 
-/* ===== Column default widths (colgroup) ===== */
-col.col-room        { width: 120px; }
-col.col-category    { width: 120px; }
-col.col-worktype    { width: 120px; }
-col.col-quantity    { width: 70px;  }
-col.col-material    { width: 140px; }
-col.col-unit_price  { width: 90px;  }
-col.col-total_price { width: 90px;  }
-col.col-description { width: auto;  } /* flex: takes remaining space */
-col.col-actions     { width: 80px;  }
+/* ===== Column widths — percentage ratios, sum to 100% ===== */
+col.col-room        { width: 10%; }
+col.col-category    { width: 10%; }
+col.col-worktype    { width: 10%; }
+col.col-material    { width: 11%; }
+col.col-description { width: 27%; }
+col.col-unit_price  { width:  9%; }
+col.col-quantity    { width:  7%; }
+col.col-total_price { width:  9%; }
+col.col-actions     { width:  7%; }
 
 /* Inputs fill their cell so they stretch/shrink with the column */
 tbody td input[type="text"],
@@ -254,9 +255,9 @@ td.actions-cell { white-space: nowrap; padding: 5px 6px; vertical-align: middle;
 /* ===== Smart Input ===== */
 .smart-input-wrap {
   position: relative;
-  min-width: 120px;
   display: flex;
   align-items: stretch;
+  width: 100%;
 }
 .smart-input-wrap input {
   flex: 1;
@@ -287,8 +288,8 @@ td input[type="text"]:focus {
   border-color: var(--primary-light);
   box-shadow: 0 0 0 2px rgba(42,82,152,0.12);
 }
-td input[type="number"] { width: 80px; }
-td input.description-input { min-width: 180px; width: 100%; }
+td input[type="number"] { width: 100%; }
+td input.description-input { width: 100%; }
 .total-price-cell { font-weight: 600; color: var(--primary); white-space: nowrap; padding: 5px 8px; }
 .readonly-cell { color: var(--muted); font-size: 13px; }
 
