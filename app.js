@@ -667,30 +667,7 @@ function setupExport() {
     scheduleCacheClear();
   });
 
-  document.getElementById('email-btn').addEventListener('click', () => {
-    // Download the YAML so user can attach it manually (mailto: cannot include attachments)
-    const yaml = buildTakeoffYaml();
-    downloadText(yaml, 'takeoff.yaml', 'text/yaml');
-    scheduleCacheClear();
-
-    // Build email content
-    const job = getJobDetails();
-    const workAddress = job.work_address || '(address not provided)';
-    const customerName = job.customer_name || '(customer not provided)';
-    const streetOnly = workAddress.split(',')[0].trim() || workAddress;
-    const lineItemCount = rows.length;
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-    const subject = encodeURIComponent(`Takeoff App - ${streetOnly}`);
-    const body = encodeURIComponent(
-      `Hi, this is the takeoff for ${customerName} at ${workAddress}. ${lineItemCount} line items for this takeoff at ${today}.`
-    );
-    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
-
-    showBanner('takeoff.yaml downloaded — please attach it to the email that opened.', 'warning');
-  });
-
-  document.getElementById('save-db-btn').addEventListener('click', () => {
+document.getElementById('save-db-btn').addEventListener('click', () => {
     const merged = mergeDatabase();
     downloadText(JSON.stringify(merged, null, 2), 'data.json', 'application/json');
     showBanner('Updated data.json downloaded! Replace the project file to save new entries.', 'success');
